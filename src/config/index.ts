@@ -9,6 +9,15 @@ export const config = {
     nodeEnv: process.env.NODE_ENV || 'development',
   },
   
+  elasticsearch: {
+    url: process.env.ELASTICSEARCH_URL || 'http://localhost:9200',
+    index: 'emails',
+    settings: {
+      number_of_shards: 1,
+      number_of_replicas: 0,
+    },
+  },
+  
   email: {
     imap: {
       host: process.env.IMAP_HOST || 'imap.gmail.com',
@@ -22,11 +31,9 @@ export const config = {
     expiresIn: '24h',
   },
   
-  sync: {
-    batchSize: 50,
-    syncInterval: 30000, // 30 seconds
-    maxRetries: 3,
-    retryDelay: 5000, // 5 seconds
+  search: {
+    maxResults: 100,
+    defaultLimit: 20,
   },
 };
 
@@ -36,7 +43,7 @@ export const getEmailAccounts = (): EmailAccount[] => {
     return [];
   }
   
-  return accountsString.split(',').map((account, index) => {
+  return accountsString.split(',').map((account: string, index: number) => {
     const [email, password] = account.split(':');
     return {
       id: `account-${index + 1}`,

@@ -3,9 +3,9 @@ import cors from 'cors';
 import helmet from 'helmet';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
-import { config, getEmailAccounts } from '../config';
-import imapService from '../services/imap.service';
-import syncRoutes from '../routes/sync.routes';
+import { config } from '../config';
+import elasticsearchService from '../services/elasticsearch.service';
+import emailRoutes from '../routes/email.routes';
 import logger from '../utils/logger';
 
 const app = express();
@@ -24,7 +24,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Routes
-app.use('/api/sync', syncRoutes);
+app.use('/api/emails', emailRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
@@ -45,40 +45,14 @@ io.on('connection', (socket) => {
   });
 });
 
-// IMAP service event handlers
-imapService.on('connected', (accountId: string) => {
-  logger.info(`Account connected: ${accountId}`);
-  io.emit('account_connected', { accountId });
-});
-
-imapService.on('disconnected', (accountId: string) => {
-  logger.info(`Account disconnected: ${accountId}`);
-  io.emit('account_disconnected', { accountId });
-});
-
-imapService.on('emails', ({ accountId, emails }) => {
-  logger.info(`New emails received for account ${accountId}: ${emails.length}`);
-  io.emit('new_emails', { accountId, emails });
-});
-
-imapService.on('error', ({ accountId, error }) => {
-  logger.error(`IMAP error for account ${accountId}:`, error);
-  io.emit('sync_error', { accountId, error: error.message });
-});
-
-// Initialize IMAP service with configured accounts
+// Initialize Elasticsearch service
 async function initializeServices() {
   try {
-    const accounts = getEmailAccounts();
-    if (accounts.length === 0) {
-      logger.warn('No email accounts configured. Please set EMAIL_ACCOUNTS environment variable.');
-      return;
-    }
-
-    logger.info(`Initializing IMAP service with ${accounts.length} accounts`);
-    await imapService.initialize(accounts);
+    logger.info('Initializing Elasticsearch service...');
+    await elasticsearchService.initialize();
+    logger.info('Elasticsearch service initialized successfully');
   } catch (error) {
-    logger.error('Failed to initialize services:', error);
+    logger.error('Failed to initialize Elasticsearch service:', error);
   }
 }
 
@@ -95,7 +69,6 @@ server.listen(PORT, () => {
 // Graceful shutdown
 process.on('SIGTERM', async () => {
   logger.info('SIGTERM received, shutting down gracefully');
-  await imapService.disconnectAll();
   server.close(() => {
     logger.info('Server closed');
     process.exit(0);
@@ -104,7 +77,6 @@ process.on('SIGTERM', async () => {
 
 process.on('SIGINT', async () => {
   logger.info('SIGINT received, shutting down gracefully');
-  await imapService.disconnectAll();
   server.close(() => {
     logger.info('Server closed');
     process.exit(0);

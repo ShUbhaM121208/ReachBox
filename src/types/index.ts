@@ -36,6 +36,30 @@ export interface EmailAttachment {
   content: Buffer;
 }
 
+export interface SearchFilters {
+  query?: string;
+  folder?: string;
+  accountId?: string;
+  dateFrom?: Date;
+  dateTo?: Date;
+  isRead?: boolean;
+  isStarred?: boolean;
+}
+
+export interface SearchResult {
+  emails: Email[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+export interface PaginationParams {
+  page: number;
+  limit: number;
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
+}
+
 export interface IMAPConnection {
   accountId: string;
   connection: any;
